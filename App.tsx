@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, X, ArrowLeft, Search, Check, Trash2, Calendar, AlertCircle } from 'lucide-react';
+import { Plus, X, ArrowLeft, Search, Check, Trash2, Calendar, AlertCircle, Code, Copy } from 'lucide-react';
 import { Tag, Task, Screen } from './types';
 
 // --- Constants & Initial Data ---
@@ -21,6 +21,246 @@ const COLOR_PALETTE = [
   '#FF5E78', '#D8B4FE', '#9333EA', '#1E293B', '#F97316', '#14B8A6',
   '#06B6D4', '#B45309', '#EF4444', '#6366F1'
 ];
+
+// --- Kotlin Code Template ---
+// This code mimics the React logic but in Native Android (Jetpack Compose)
+const KOTLIN_CODE = `
+package com.example.mytask
+
+import android.os.Bundle
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.setContent
+import androidx.compose.animation.*
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
+import java.util.UUID
+
+// --- Models ---
+data class Tag(val id: String, val label: String, val color: Long)
+data class Task(
+    val id: String,
+    val title: String,
+    val description: String = "",
+    val tagId: String,
+    val completed: Boolean = false,
+    val dueDate: String? = null
+)
+
+// --- Theme Colors ---
+val PrimaryColor = Color(0xFFFF5E78)
+val TextDark = Color(0xFF1D1B4B)
+val BgColor = Color(0xFFF3F6F8)
+
+class MainActivity : ComponentActivity() {
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContent {
+            MyTaskApp()
+        }
+    }
+}
+
+@Composable
+fun MyTaskApp() {
+    // In a real app, use ViewModel and Room Database
+    var screen by remember { mutableStateOf("LOGIN") }
+    var email by remember { mutableStateOf("") }
+    
+    // State
+    var tasks by remember { mutableStateOf(listOf<Task>()) }
+    var tags by remember { mutableStateOf(listOf(
+        Tag("1", "Famille", 0xFFCBD5E1),
+        Tag("2", "Ecole", 0xFFFF5E78),
+        Tag("3", "Finance", 0xFFCBD5E1)
+    )) }
+    
+    // Navigation Data
+    var editingTask by remember { mutableStateOf<Task?>(null) }
+
+    Surface(modifier = Modifier.fillMaxSize(), color = BgColor) {
+        when (screen) {
+            "LOGIN" -> LoginScreen(onLogin = { 
+                email = it
+                screen = "HOME" 
+            })
+            "HOME" -> HomeScreen(
+                email = email,
+                tasks = tasks,
+                tags = tags,
+                onToggle = { id -> 
+                    tasks = tasks.map { if (it.id == id) it.copy(completed = !it.completed) else it }
+                },
+                onDelete = { id -> tasks = tasks.filter { it.id != id } },
+                onEdit = { task ->
+                    editingTask = task
+                    screen = "NEW_NOTE"
+                },
+                onNew = {
+                    editingTask = null
+                    screen = "NEW_NOTE"
+                },
+                onLogout = { screen = "LOGIN" }
+            )
+            "NEW_NOTE" -> NewNoteScreen(
+                tags = tags,
+                taskToEdit = editingTask,
+                onBack = { screen = "HOME" },
+                onSave = { task ->
+                    if (editingTask != null) {
+                        tasks = tasks.map { if (it.id == task.id) task else it }
+                    } else {
+                        tasks = listOf(task) + tasks
+                    }
+                    screen = "HOME"
+                },
+                onDelete = { id ->
+                    tasks = tasks.filter { it.id != id }
+                    screen = "HOME"
+                }
+            )
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun HomeScreen(
+    email: String, 
+    tasks: List<Task>, 
+    tags: List<Tag>,
+    onToggle: (String) -> Unit,
+    onDelete: (String) -> Unit,
+    onEdit: (Task) -> Unit,
+    onNew: () -> Unit,
+    onLogout: () -> Unit
+) {
+    var searchQuery by remember { mutableStateOf("") }
+    
+    val filteredTasks = tasks.filter { 
+        it.title.contains(searchQuery, ignoreCase = true) 
+    }.sortedBy { it.completed }
+
+    Box(modifier = Modifier.fillMaxSize()) {
+        Column(modifier = Modifier.padding(24.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(top = 24.dp),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Column {
+                    Text("MyTask", fontSize = 32.sp, fontWeight = FontWeight.Bold, color = TextDark)
+                    Text(email, fontSize = 14.sp, color = Color.Gray, modifier = Modifier.clickable { onLogout() })
+                }
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            // Search
+            TextField(
+                value = searchQuery,
+                onValueChange = { searchQuery = it },
+                placeholder = { Text("Rechercher...") },
+                modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(50)),
+                colors = TextFieldDefaults.textFieldColors(
+                    containerColor = Color.White,
+                    focusedIndicatorColor = Color.Transparent,
+                    unfocusedIndicatorColor = Color.Transparent
+                ),
+                leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) }
+            )
+
+            Spacer(modifier = Modifier.height(24.dp))
+            
+            LazyColumn(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                items(filteredTasks) { task ->
+                    TaskItem(task, tags.find { it.id == task.tagId }, onToggle, onEdit, onDelete)
+                }
+            }
+        }
+        
+        FloatingActionButton(
+            onClick = onNew,
+            containerColor = PrimaryColor,
+            modifier = Modifier.align(Alignment.BottomEnd).padding(32.dp).size(64.dp),
+            shape = CircleShape
+        ) {
+            Icon(Icons.Default.Add, contentDescription = null, tint = Color.White)
+        }
+    }
+}
+
+@Composable
+fun TaskItem(task: Task, tag: Tag?, onToggle: (String) -> Unit, onEdit: (Task) -> Unit, onDelete: (String) -> Unit) {
+    val alpha by animateFloatAsState(if (task.completed) 0.6f else 1f)
+    
+    Card(
+        modifier = Modifier.fillMaxWidth().alpha(alpha).clickable { onEdit(task) },
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White)
+    ) {
+        Row(
+            modifier = Modifier.padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(24.dp)
+                    .clip(CircleShape)
+                    .background(if (task.completed) Color.LightGray else Color.Transparent)
+                    .border(2.dp, if(task.completed) Color.LightGray else PrimaryColor, CircleShape)
+                    .clickable { onToggle(task.id) },
+                contentAlignment = Alignment.Center
+            ) {
+                if(task.completed) Icon(Icons.Default.Check, null, tint = Color.Gray, modifier = Modifier.size(16.dp))
+            }
+            
+            Spacer(modifier = Modifier.width(16.dp))
+            
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    task.title, 
+                    fontSize = 18.sp, 
+                    fontWeight = FontWeight.Medium,
+                    textDecoration = if (task.completed) TextDecoration.LineThrough else null,
+                    color = TextDark
+                )
+                if (tag != null) {
+                    Text(
+                        tag.label, 
+                        fontSize = 12.sp, 
+                        color = Color.White,
+                        modifier = Modifier
+                            .background(Color(tag.color), RoundedCornerShape(4.dp))
+                            .padding(horizontal = 6.dp, vertical = 2.dp)
+                    )
+                }
+            }
+            
+            IconButton(onClick = { onDelete(task.id) }) {
+                Icon(Icons.Default.Delete, null, tint = Color.LightGray)
+            }
+        }
+    }
+}
+// ... (Add LoginScreen and NewNoteScreen implementations similarly)
+`;
 
 // --- Components ---
 
@@ -50,7 +290,7 @@ export default function App() {
   const [email, setEmail] = useState(() => localStorage.getItem('mytask_email') || '');
   
   // Decide initial screen based on login status
-  const [screen, setScreen] = useState<Screen>(() => {
+  const [screen, setScreen] = useState<Screen | 'ANDROID_EXPORT'>(() => {
     // If we have an email, start at HOME (skip login/welcome for returning users)
     return localStorage.getItem('mytask_email') ? 'HOME' : 'LOGIN';
   });
@@ -81,7 +321,7 @@ export default function App() {
 
   // --- Navigation & Hardware Back Button Support ---
   
-  const navigate = (to: Screen, method: 'push' | 'replace' = 'push') => {
+  const navigate = (to: Screen | 'ANDROID_EXPORT', method: 'push' | 'replace' = 'push') => {
     setScreen(to);
     if (method === 'push') {
       window.history.pushState({ screen: to }, '');
@@ -284,6 +524,9 @@ export default function App() {
                <h1 className="text-4xl font-bold text-[#1D1B4B]">MyTask</h1>
                <p className="text-sm text-gray-500 cursor-pointer" onClick={handleLogout}>{email || 'user@yopmail.com'}</p>
            </div>
+           <button onClick={() => navigate('ANDROID_EXPORT')} className="p-2 bg-white rounded-full shadow-sm text-gray-400 hover:text-[#FF5E78] transition-colors">
+               <Code size={20} />
+           </button>
         </div>
 
         {/* Search Bar */}
@@ -626,6 +869,32 @@ export default function App() {
       );
   };
 
+  const AndroidExportScreen = () => {
+      const copyToClipboard = () => {
+          navigator.clipboard.writeText(KOTLIN_CODE);
+          alert("Code Kotlin copié !");
+      };
+
+      return (
+        <div className="flex flex-col h-screen bg-[#1E1E1E] text-white overflow-hidden">
+            <div className="p-4 flex justify-between items-center border-b border-gray-700">
+                <button onClick={goBack} className="text-gray-400 hover:text-white">
+                    <ArrowLeft size={24} />
+                </button>
+                <h2 className="font-mono text-sm">MainActivity.kt</h2>
+                <button onClick={copyToClipboard} className="text-[#FF5E78] hover:text-white">
+                    <Copy size={24} />
+                </button>
+            </div>
+            <div className="flex-1 overflow-auto p-4 font-mono text-xs text-gray-300 leading-5">
+                <pre className="whitespace-pre-wrap select-all">
+                    {KOTLIN_CODE}
+                </pre>
+            </div>
+        </div>
+      );
+  };
+
   // --- Render Switch ---
 
   return (
@@ -635,6 +904,7 @@ export default function App() {
       {screen === 'HOME' && <HomeScreen />}
       {screen === 'NEW_NOTE' && <NewNoteScreen />}
       {screen === 'NEW_TAG' && <NewTagScreen />}
+      {screen === 'ANDROID_EXPORT' && <AndroidExportScreen />}
     </div>
   );
 }
