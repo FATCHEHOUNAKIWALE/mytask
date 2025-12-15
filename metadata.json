@@ -1,5 +1,5 @@
 {
-  "name": "Copy of MyTask",
+  "name": "MyTask",
   "description": "A minimalist task management application with session handling and custom tags.",
   "requestFramePermissions": []
 }
